@@ -1,47 +1,71 @@
-import { useState, useEffect } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import { post, get, setTokens, clearTokens } from "./api";
 
-function App() {
-  const [count, setCount] = useState(0)
-  const [currentTime, setCurrentTime] = useState(0);
+export default function App() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [me, setMe] = useState(null);
+  const [error, setError] = useState("");
+
+  async function loadMe() {
+    try {
+      const data = await get("/api/me");
+      setMe(data.user);
+    } catch {
+      setMe(null);
+    }
+  }
 
   useEffect(() => {
-    fetch('/api/time')
-      .then(res => res.json())
-      .then(data => {
-        setCurrentTime(data.time);
-      })
+    loadMe();
   }, []);
 
+  async function onRegister() {
+    setError("");
+    try {
+      await post("/api/auth/register", { email, password });
+      alert("Registered! Now login.");
+    } catch (e) {
+      setError(e.error || "register failed");
+    }
+  }
+
+  async function onLogin() {
+    setError("");
+    try {
+      const data = await post("/api/auth/login", { email, password });
+      setTokens(data.access_token, data.refresh_token);
+      await loadMe();
+    } catch (e) {
+      setError(e.error || "login failed");
+    }
+  }
+
+  function onLogout() {
+    clearTokens();
+    setMe(null);
+  }
+
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
+    <div style={{ padding: 24 }}>
+      <h1>Auth + Profile</h1>
 
-        <p> The current time is {new Date(currentTime * 1000).toLocaleString()} </p>
-
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+      {me ? (
+        <>
+          <p>Logged in as <b>{me.email}</b></p>
+          <button onClick={onLogout}>Logout</button>
+        </>
+      ) : (
+        <>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email" />
+          <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="password" type="password" />
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <button onClick={onRegister}>Register</button>
+            <button onClick={onLogin}>Login</button>
+          </div>
+          {error && <p>❌ {error}</p>}
+        </>
+      )}
+    </div>
+  );
 }
-
-export default App
